@@ -1,9 +1,8 @@
-﻿using Lumina;
+﻿using System.Text.RegularExpressions;
+
+using Lumina;
 using Lumina.Excel;
 using Lumina.Excel.GeneratedSheets;
-
-using System.Diagnostics;
-using System.Text.RegularExpressions;
 
 namespace CofferManifestGenerator;
 
@@ -139,7 +138,7 @@ internal class Program
 						( recipe.ItemResult.Value.EquipSlotCategory.Value.FingerR != 0 && coffer.Value.EquipSlot == Slot.Ring ) ||
 						( recipe.ItemResult.Value.EquipSlotCategory.Value.FingerL != 0 && coffer.Value.EquipSlot == Slot.Ring )
 					) &&
-					!(	
+					!(
 						recipe.ItemResult.Value.ClassJobCategory.Value.CRP ||
 						recipe.ItemResult.Value.ClassJobCategory.Value.BSM ||
 						recipe.ItemResult.Value.ClassJobCategory.Value.ARM ||
