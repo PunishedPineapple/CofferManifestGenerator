@@ -121,10 +121,17 @@ internal class Program
 
 			foreach( var recipe in mRecipeSheet )
 			{
-				//***** TODO: How can we reasonably check the series name, since recipes in the series might have different names for some pieces.
-				//*****		The best option may be to just print out recipe names after comparing ilvl and jobs and manually look for any that don't fit in.
+				//***** TODO:	How can we reasonably check the series name, since recipes in the series might have different names for some pieces.  A few
+				//*****			coffers, like the ruthenium ring coffer, have no items with the series name in them. The best option may be to just print out
+				//*****			recipe names after comparing ilvl and jobs and manually look for any that don't fit in.  We *may* be able to check whether
+				//*****			the series name is in the craft name or one of its ingredients.
+
 				if( /*recipe.ItemResult.Value.Singular.ToString().Contains( coffer.Value.SeriesName ) &&*/
 					recipe.ItemResult.Value.LevelItem.Value.RowId == coffer.Value.ItemLevel &&
+					!(
+						recipe.SecretRecipeBook.Value.RowId > 0 &&
+						recipe.RecipeLevelTable.Value.Stars > 0
+					) &&
 					(
 						( recipe.ItemResult.Value.EquipSlotCategory.Value.MainHand != 0 && coffer.Value.EquipSlot == Slot.Weapon ) ||
 						( recipe.ItemResult.Value.EquipSlotCategory.Value.OffHand != 0 && coffer.Value.EquipSlot == Slot.Weapon ) ||
@@ -135,6 +142,7 @@ internal class Program
 						( recipe.ItemResult.Value.EquipSlotCategory.Value.Feet != 0 && coffer.Value.EquipSlot == Slot.Feet ) ||
 						( recipe.ItemResult.Value.EquipSlotCategory.Value.Ears != 0 && coffer.Value.EquipSlot == Slot.Earring ) ||
 						( recipe.ItemResult.Value.EquipSlotCategory.Value.Neck != 0 && coffer.Value.EquipSlot == Slot.Neck ) ||
+						( recipe.ItemResult.Value.EquipSlotCategory.Value.Wrists != 0 && coffer.Value.EquipSlot == Slot.Bracelet ) ||
 						( recipe.ItemResult.Value.EquipSlotCategory.Value.FingerR != 0 && coffer.Value.EquipSlot == Slot.Ring ) ||
 						( recipe.ItemResult.Value.EquipSlotCategory.Value.FingerL != 0 && coffer.Value.EquipSlot == Slot.Ring )
 					) &&
@@ -167,6 +175,15 @@ internal class Program
 			{
 				string line = $"{entry.Key}";
 				foreach( var item in entry.Value ) line += $",{item}";
+				outFile.WriteLine( line );
+			}
+			outFile.Close();
+
+			outFile = File.CreateText( ".\\CofferManifests_Resolved.csv" );
+			foreach( var entry in cofferManifests )
+			{
+				string line = $"{mItemSheet.GetRow( entry.Key ).Name}";
+				foreach( var item in entry.Value ) line += $",{mItemSheet.GetRow( item ).Name}";
 				outFile.WriteLine( line );
 			}
 			outFile.Close();
