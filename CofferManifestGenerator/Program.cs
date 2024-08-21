@@ -50,17 +50,18 @@ internal class Program
 		foreach( var row in mItemSheet )
 		{
 			++rowCount;
-			if( row.Singular.ToString().Contains( "Coffer (IL", StringComparison.InvariantCultureIgnoreCase ) )
+			if( row.Name.ToString().Contains( "Coffer (IL", StringComparison.InvariantCultureIgnoreCase ) )
 			{
-				cofferDict.TryAdd( row.RowId, row.Singular );
+				cofferDict.TryAdd( row.RowId, row.Name );
 			}
 		}
 
-		Console.WriteLine( $"Found {cofferDict.Count} coffers in {rowCount} rows." );
+		Console.WriteLine( $"Found {cofferDict.Count} gear coffers of any type in {rowCount} rows." );
 
 		try
 		{
-			var outFile = File.CreateText( ".\\Coffers.csv" );
+			var outFile = File.CreateText( ".\\CofferList.csv" );
+			outFile.WriteLine( "Item ID, Name" );
 			foreach( var entry in cofferDict )
 			{
 				outFile.WriteLine( $"{entry.Key},{entry.Value}" );
@@ -69,7 +70,7 @@ internal class Program
 		}
 		catch( Exception e )
 		{
-			Console.WriteLine( $"Error generating coffer list:\r\n{e}" );
+			Console.WriteLine( $"Error writing coffer list:\r\n{e}" );
 		}
 	}
 
@@ -77,17 +78,19 @@ internal class Program
 	{
 		Dictionary<UInt32, CofferInfo> cofferDict = new();
 		int rowCount = 0;
+		int blacklistedCount = 0;
 
-		Regex cofferRegex = new( @"(.*) (weapon|head|chest|hand|leg|foot|earring|necklace|bracelet|ring)(| gear) coffer \(IL ([0-9]+)\)" );
+		Regex cofferRegex = new( @"(.*) (weapon|head|chest|hand|leg|foot|earring|necklace|bracelet|ring)(| gear) coffer \(il ([0-9]+)\)" );
 
 		foreach( var row in mItemSheet )
 		{
 			++rowCount;
-			var match = cofferRegex.Match( row.Singular.ToString() );
+			var match = cofferRegex.Match( row.Name.ToString().ToLower() );
 			if( match.Success )
 			{
 				CofferInfo cofferData = new()
 				{
+					Name = row.Name,
 					SeriesName = match.Groups[1].Value,
 					EquipSlot = SlotExtensions.Parse( match.Groups[2].Value ),
 					ItemLevel = int.Parse( match.Groups[4].Value ),
@@ -97,20 +100,21 @@ internal class Program
 			}
 		}
 
-		Console.WriteLine( $"Found {cofferDict.Count} coffers in {rowCount} rows." );
+		Console.WriteLine( $"Found {cofferDict.Count} single-slot coffers in {rowCount} rows." );
 
 		try
 		{
 			var outFile = File.CreateText( ".\\CofferData.csv" );
+			outFile.WriteLine( "Item ID, Name, Series, Equip Slot, Item Level" );
 			foreach( var entry in cofferDict )
 			{
-				outFile.WriteLine( $"{entry.Key},{entry.Value.SeriesName},{entry.Value.EquipSlot},{entry.Value.ItemLevel}" );
+				outFile.WriteLine( $"{entry.Key},{entry.Value.Name},{entry.Value.SeriesName},{entry.Value.EquipSlot},{entry.Value.ItemLevel}" );
 			}
 			outFile.Close();
 		}
 		catch( Exception e )
 		{
-			Console.WriteLine( $"Error generating coffer list:\r\n{e}" );
+			Console.WriteLine( $"Error writing coffer data:\r\n{e}" );
 		}
 
 		Dictionary<uint,List<uint>> cofferManifests = new();
@@ -119,6 +123,12 @@ internal class Program
 		{
 			List<uint> cofferRecipes = new();
 
+			if( mBlacklistedCoffers.Contains( coffer.Key ) )
+			{
+				++blacklistedCount;
+				continue;
+			}
+
 			foreach( var recipe in mRecipeSheet )
 			{
 				//***** TODO:	How can we reasonably check the series name, since recipes in the series might have different names for some pieces.  A few
@@ -126,7 +136,7 @@ internal class Program
 				//*****			recipe names after comparing ilvl and jobs and manually look for any that don't fit in.  We *may* be able to check whether
 				//*****			the series name is in the craft name or one of its ingredients.
 
-				if( /*recipe.ItemResult.Value.Singular.ToString().Contains( coffer.Value.SeriesName ) &&*/
+				if( //recipe.ItemResult.Value.Name.ToString().ToLower().Contains( coffer.Value.SeriesName.ToLower() ) &&
 					recipe.ItemResult.Value.LevelItem.Value.RowId == coffer.Value.ItemLevel &&
 					!(
 						recipe.SecretRecipeBook.Value.RowId > 0 &&
@@ -168,6 +178,8 @@ internal class Program
 			if( cofferRecipes.Count > 0 ) cofferManifests.TryAdd( coffer.Key, cofferRecipes );
 		}
 
+		Console.WriteLine( $"Ignored {blacklistedCount} blacklisted coffers (out of {mBlacklistedCoffers.Length} expected)." );
+
 		try
 		{
 			var outFile = File.CreateText( ".\\CofferManifests.csv" );
@@ -180,9 +192,10 @@ internal class Program
 			outFile.Close();
 
 			outFile = File.CreateText( ".\\CofferManifests_Resolved.csv" );
+			outFile.WriteLine( "Item ID, Name, Contents..." );
 			foreach( var entry in cofferManifests )
 			{
-				string line = $"{mItemSheet.GetRow( entry.Key ).Name}";
+				string line = $"{entry.Key},{mItemSheet.GetRow( entry.Key ).Name}";
 				foreach( var item in entry.Value ) line += $",{mItemSheet.GetRow( item ).Name}";
 				outFile.WriteLine( line );
 			}
@@ -190,11 +203,29 @@ internal class Program
 		}
 		catch( Exception e )
 		{
-			Console.WriteLine( $"Error generating coffer list:\r\n{e}" );
+			Console.WriteLine( $"Error writing coffer manifests:\r\n{e}" );
 		}
+
+		Console.WriteLine( $"Exported manifests for {cofferManifests.Count} coffers that met all requirements." );
 	}
 
 	private static GameData mGameData = null;
 	private static ExcelSheet<Item> mItemSheet = null;
 	private static ExcelSheet<Recipe> mRecipeSheet = null;
+
+	//	Coffers that don't get weeded out by our other checks.
+	private static readonly uint[] mBlacklistedCoffers =
+	{
+		31691,	//	Level 50 Weapon Coffer (IL 70)
+		35884,  //	High Allagan Weapon Coffer (IL 115)
+		36136,	//	Vortex Weapon Coffer (IL 70)
+		36146,	//	Sophic Weapon Coffer (IL 255)
+		36147,	//	Zurvanite Weapon Coffer (IL 265)
+		36152,	//	Suzaku Weapon Coffer (IL 385)
+		36153,	//	Seiryu Weapon Coffer (IL 395)
+		36158,	//	Emerald Weapon Coffer (IL 515)
+		36159,	//	Diamond Zeta Weapon Coffer (IL 525)
+		40296,	//	Voidcast Weapon Coffer (IL 645)
+		41054,	//	Voidvessel Weapon Coffer (IL 655)
+	};
 }
