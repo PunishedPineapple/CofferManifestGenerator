@@ -2,7 +2,7 @@
 
 using Lumina;
 using Lumina.Excel;
-using Lumina.Excel.GeneratedSheets;
+using Lumina.Excel.Sheets;
 
 namespace CofferManifestGenerator;
 
@@ -52,7 +52,7 @@ internal class Program
 			++rowCount;
 			if( row.Name.ToString().Contains( "Coffer (IL", StringComparison.InvariantCultureIgnoreCase ) )
 			{
-				cofferDict.TryAdd( row.RowId, row.Name );
+				cofferDict.TryAdd( row.RowId, row.Name.ToString() );
 			}
 		}
 
@@ -90,7 +90,7 @@ internal class Program
 			{
 				CofferInfo cofferData = new()
 				{
-					Name = row.Name,
+					Name = row.Name.ToString(),
 					SeriesName = match.Groups[1].Value,
 					EquipSlot = SlotExtensions.Parse( match.Groups[2].Value ),
 					ItemLevel = int.Parse( match.Groups[4].Value ),
